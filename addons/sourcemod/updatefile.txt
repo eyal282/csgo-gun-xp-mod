@@ -12,7 +12,5 @@
 {
     "Plugin"	"Path_SM/plugins/GunXPMod/GunXPMod.smx"
 	"Plugin"	"Path_SM/plugins/GunXPMod/GunXPConfig.smx"
-	"Plugin"	"Path_SM/plugins/GunXPMod/GunXPUpdater.smx"
-
     
 }
