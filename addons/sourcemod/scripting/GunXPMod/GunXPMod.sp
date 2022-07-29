@@ -236,7 +236,9 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length
 	CreateNative("GunXP_UnlockShop_ReplenishProducts", Native_ReplenishProducts);
 	CreateNative("GunXP_UnlockShop_IsProductUnlocked", Native_IsProductUnlocked);
 
+	RegPluginLibrary("GunXPMod");
 	RegPluginLibrary("GunXP_UnlockShop");
+	RegPluginLibrary("GunXP_SkillShop");
 }
 
 
@@ -571,19 +573,8 @@ public void OnClientConnected(int client)
 	CalculateStats(client);
 }
 
-public void OnMapEnd()
-{
-	RemoveServerTag2("GunXP");
-	RemoveServerTag2("GunXPMod");
-	RemoveServerTag2("GXM");
-}
-
 public void OnMapStart()
 {
-	AddServerTag2("GunXP");
-	AddServerTag2("GunXPMod");
-	AddServerTag2("GXM");
-
 	CreateTimer(2.5, HudMessageXP, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 	
 	for(int i=0;i < MAXPLAYERS+1;i++)
@@ -1401,7 +1392,7 @@ public Action Event_PlayerSpawn(Handle hEvent, char[] Name, bool dontBroadcast)
 
 	else if(!IsPlayerAlive(client))
 		return;
-		
+
 	int UserId = GetEventInt(hEvent, "userid");
 	
 	RequestFrame(Event_PlayerSpawnFrame, UserId);
