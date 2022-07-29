@@ -1,0 +1,18 @@
+"Information"
+{
+    "Version"
+    {
+        "Latest"	"1.1"
+    }
+    
+    "Notes"	"Updater setup"
+}
+    
+"Files"
+{
+    "Plugin"	"Path_SM/plugins/GunXPMod/GunXPMod.smx"
+	"Plugin"	"Path_SM/plugins/GunXPMod/GunXPConfig.smx"
+	"Plugin"	"Path_SM/plugins/GunXPMod/GunXPUpdater.smx"
+
+    
+}
