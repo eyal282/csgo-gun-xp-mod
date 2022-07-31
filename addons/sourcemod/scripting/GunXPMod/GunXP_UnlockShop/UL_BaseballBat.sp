@@ -9,7 +9,7 @@
 #pragma semicolon 1
 
 // sClassname = classname of weapon required to use this product. Only affects min level.
-native int GunXP_UnlockShop_RegisterProduct(char sName[64], char sDescription[512], int cost, int minLevel, char[] sClassname);
+native int GunXP_UnlockShop_RegisterProduct(char sName[64], char sDescription[512], int cost, int minLevel, char[] sClassname, int gamemode);
 native bool GunXP_UnlockShop_IsProductUnlocked(int client, int productIndex);
 
 int baseballBatIndex = -1;
@@ -64,7 +64,7 @@ public void OnPluginStart()
 
 public void RegisterProduct()
 {
-    baseballBatIndex = GunXP_UnlockShop_RegisterProduct("Baseball Bat", "Sends players flying\nDeals 300 damage on backstabs and right click\nDeals 90 damage on left clicks", 90, 0, "weapon_knife");
+    baseballBatIndex = GunXP_UnlockShop_RegisterProduct("Baseball Bat", "Sends players flying\nDeals 300 damage on backstabs and right click\nDeals 90 damage on left clicks", 90, 0, "weapon_knife", 1);
 }
 
 public Action Event_PlayerSpawn(Handle hEvent, const char[] sName, bool dontBroadcast)

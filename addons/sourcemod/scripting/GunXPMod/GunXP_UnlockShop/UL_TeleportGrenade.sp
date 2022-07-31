@@ -10,7 +10,7 @@
 
 #define MIN_FLOAT -2147483647.0
 
-native int GunXP_UnlockShop_RegisterProduct(char sName[64], char sDescription[512], int cost, int minLevel, char[] sClassname);
+native int GunXP_UnlockShop_RegisterProduct(char sName[64], char sDescription[512], int cost, int minLevel, char[] sClassname, int gamemode);
 native bool GunXP_UnlockShop_IsProductUnlocked(int client, int productIndex);
 
 int teleportGrenadeIndex = -1;
@@ -38,7 +38,7 @@ public void OnPluginStart()
 
 public void RegisterProduct()
 {
-    teleportGrenadeIndex = GunXP_UnlockShop_RegisterProduct("Teleport Grenade", "Spawn with a Smoke Grenade\nYou will teleport to the smoke grenade after it detonates.\nTeleportation will not occur if you would either\nget stuck or teleport to another teleport entity",200, 7, "weapon_smokegrenade");
+    teleportGrenadeIndex = GunXP_UnlockShop_RegisterProduct("Teleport Grenade", "Spawn with a Smoke Grenade\nYou will teleport to the smoke grenade after it detonates.\nTeleportation will not occur if you would either\nget stuck or teleport to another teleport entity",200, 7, "weapon_smokegrenade", 1);
 }
 
 public Action Event_PlayerSpawn(Handle hEvent, const char[] sName, bool dontBroadcast)

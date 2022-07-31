@@ -10,7 +10,7 @@
 
 #define MIN_FLOAT -2147483647.0
 
-native int GunXP_UnlockShop_RegisterProduct(char sName[64], char sDescription[512], int cost, int minLevel, char[] sClassname);
+native int GunXP_UnlockShop_RegisterProduct(char sName[64], char sDescription[512], int cost, int minLevel, char[] sClassname, int gamemode);
 native bool GunXP_UnlockShop_IsProductUnlocked(int client, int productIndex);
 
 int seekingGrenadeIndex = -1;
@@ -36,7 +36,7 @@ public void OnPluginStart()
 
 public void RegisterProduct()
 {
-	seekingGrenadeIndex = GunXP_UnlockShop_RegisterProduct("Seeking HE Grenade", "Spawn with an HE Grenade\nHE Grenade seeks players in range.", 150, 0, "weapon_hegrenade");
+	seekingGrenadeIndex = GunXP_UnlockShop_RegisterProduct("Seeking HE Grenade", "Spawn with an HE Grenade\nHE Grenade seeks players in range.", 150, 0, "weapon_hegrenade", 1);
 }
 public Action Event_PlayerSpawn(Handle hEvent, const char[] sName, bool dontBroadcast)
 {
@@ -144,67 +144,5 @@ public void OnEntityCreated(int entity, const char[] classname)
 
 public void OnSpawnPost(int entity)
 {
-    SDKHook(entity, SDKHook_Touch, _SDKHook_Touch);
-}
-
-public void _SDKHook_Touch(int smoke, int toucher)
-{
-    char sClassname[64];
-    GetEdictClassname(toucher, sClassname, sizeof(sClassname));
-
-    if(StrEqual(sClassname, "trigger_teleport"))
-    {
-        int flags = GetEntProp(toucher, Prop_Send, "m_spawnflags");
-
-        if(flags & (1<<0))
-        {
-            int owner = GetEntPropEnt(smoke, Prop_Send, "m_hOwnerEntity");
-
-            if(owner == -1)
-                return;
-
-            else if(!GunXP_UnlockShop_IsProductUnlocked(owner, seekingGrenadeIndex))
-                return;
-
-            AcceptEntityInput(smoke, "Kill");
-            PrintToChat(owner, "Teleport failed! Cannot teleport to a teleport");
-        }
-    }
-}
-
-public void _SDKHook_StartTouch(int smoke, int toucher)
-{
-    char sClassname[64];
-    GetEdictClassname(toucher, sClassname, sizeof(sClassname));
-
-    PrintToChatAll("b %s", sClassname);
-}
-
-stock void TeleportToGround(int client)
-{
-	float vecMin[3], vecMax[3], vecOrigin[3], vecFakeOrigin[3];
-
-	GetClientMins(client, vecMin);
-	GetClientMaxs(client, vecMax);
-
-	GetClientAbsOrigin(client, vecOrigin);
-	vecFakeOrigin = vecOrigin;
-
-	vecFakeOrigin[2] = MIN_FLOAT;
-
-	TR_TraceHullFilter(vecOrigin, vecFakeOrigin, vecMin, vecMax, MASK_PLAYERSOLID, TraceRayDontHitPlayers);
-
-	TR_GetEndPosition(vecOrigin);
-
-	TeleportEntity(client, vecOrigin, NULL_VECTOR, NULL_VECTOR);
-}
-
-stock bool UC_IsNullVector(const float Vector[3])
-{
-	return (Vector[0] == NULL_VECTOR[0] && Vector[0] == NULL_VECTOR[1] && Vector[2] == NULL_VECTOR[2]);
-}
-
-public bool TraceRayDontHitPlayers(int entityhit, int mask)
-{
-	return (entityhit > MaxClients || entityhit == 0);
+    
 }

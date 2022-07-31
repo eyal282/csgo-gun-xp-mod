@@ -10,8 +10,10 @@
 
 #define MIN_FLOAT -2147483647.0
 
+Handle hTimer_Spawn[MAXPLAYERS+1];
+
 // Make identifier as descriptive as possible.
-native int GunXP_SkillShop_RegisterSkill(char identifier[32], char name[64], char description[512], int cost);
+native int GunXP_SkillShop_RegisterSkill(char identifier[32], char name[64], char description[512], int cost, int gamemode);
 native bool GunXP_SkillShop_IsSkillUnlocked(int client, int skillIndex);
 
 int vampireIndex = -1;
@@ -46,9 +48,17 @@ public void OnPluginStart()
 
 public void RegisterSkill()
 {
-    vampireIndex = GunXP_SkillShop_RegisterSkill("VampireAndHP", "Vampire", "30% HP regen when you deal damage.\n+30 HP on spawn", 1);
+    vampireIndex = GunXP_SkillShop_RegisterSkill("VampireAndHP", "Vampire", "30% HP regen when you deal damage.\n+30 HP on spawn", 1, 1);
 }
 
+public void OnClientDisconnect(int client)
+{
+	if(hTimer_Spawn[client] != INVALID_HANDLE)
+	{
+		CloseHandle(hTimer_Spawn[client]);
+		hTimer_Spawn[client] = INVALID_HANDLE;
+	}
+}
 public void OnClientPutInServer(int client)
 {
 	SDKHook(client, SDKHook_OnTakeDamageAlivePost, Event_TakeDamageAlivePost);
@@ -91,19 +101,16 @@ public Action Event_PlayerSpawn(Handle hEvent, const char[] sName, bool dontBroa
     
     if(GunXP_SkillShop_IsSkillUnlocked(client, vampireIndex))
     {
-        CreateTimer(0.5, Timer_GiveHealth, GetClientUserId(client));
+        hTimer_Spawn[client] = CreateTimer(0.5, Timer_GiveHealth, client, TIMER_FLAG_NO_MAPCHANGE);
     }
 }
 
-public Action Timer_GiveHealth(Handle hTimer, int UserId)
+public Action Timer_GiveHealth(Handle hTimer, int client)
 {
-    int client = GetClientOfUserId(UserId);
+	hTimer_Spawn[client] = INVALID_HANDLE;
 
-    if(client == 0)
-        return;
-
-    else if(!IsPlayerAlive(client))
-        return;
+	if(!IsPlayerAlive(client))
+		return;
 
     SetEntityHealth(client, GetEntityHealth(client) + 30);
     SetEntityMaxHealth(client, GetEntityMaxHealth(client) + 30);

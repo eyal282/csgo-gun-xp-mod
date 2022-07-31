@@ -14,7 +14,6 @@
 #pragma newdecls required
 #pragma semicolon 1
 
-#define RESET_ENABLED
 //#define UNKNOWN_ERROR "\x01An unknown error has occured, action was aborted."
 
 #define ADMFLAG_VIP ADMFLAG_CUSTOM2
@@ -31,6 +30,7 @@ public Plugin myinfo = {
 
 bool SaveLastGuns[MAXPLAYERS+1];
 
+Handle hcv_gameMode = INVALID_HANDLE;
 Handle hcv_xpKill = INVALID_HANDLE;
 Handle hcv_xpHS = INVALID_HANDLE;
 Handle hcv_xpKnife = INVALID_HANDLE;
@@ -84,6 +84,8 @@ enum struct enProduct
 	int cost;
 	// min level to use.
 	int minLevel;
+
+	int gamemode;
 }
 
 enum struct enSkill
@@ -95,6 +97,8 @@ enum struct enSkill
 	char description[512];
 	// Cost in resets.
 	int cost;
+
+	int gamemode;
 }
 
 
@@ -269,10 +273,13 @@ public int Native_RegisterSkill(Handle caller, int numParams)
 
 	int cost = GetNativeCell(4);
 
+	int gamemode = GetNativeCell(5);
+
 	skill.identifier = identifier;
 	skill.name = name;
 	skill.description = description;
 	skill.cost = cost;
+	skill.gamemode = gamemode;
 
 	return g_aSkills.PushArray(skill);
 }
@@ -313,8 +320,10 @@ public int Native_RegisterProduct(Handle caller, int numParams)
 	int minLevel = GetNativeCell(4);
 
 	char sClassname[64];
-	GetNativeString(4, sClassname, sizeof(sClassname));
+	GetNativeString(5, sClassname, sizeof(sClassname));
 
+	int gamemode = GetNativeCell(6);
+	
 	// Weapon requirements cannot reduce min level.
 	for(int i=minLevel;i < MAX_LEVEL;i++)
 	{
@@ -324,10 +333,12 @@ public int Native_RegisterProduct(Handle caller, int numParams)
 			break;
 		}
 	}
+
 	product.name = name;
 	product.description = description;
 	product.cost = cost;
 	product.minLevel = minLevel;
+	product.gamemode = gamemode;
 
 	return g_aUnlockItems.PushArray(product);
 }
@@ -442,12 +453,10 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_guns", Command_Guns);
 	RegConsoleCmd("sm_ul", Command_UnlockShop);
 	RegAdminCmd("sm_givexp", Command_GiveXP, ADMFLAG_ROOT);
-	#if defined RESET_ENABLED
 	RegConsoleCmd("sm_reset", Command_Reset);
 	RegConsoleCmd("sm_skills", Command_Skills);
 	RegConsoleCmd("sm_skill", Command_Skills);
 	RegConsoleCmd("sm_rpg", Command_Skills);
-	#endif
 	
 	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
 	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Post);
@@ -467,6 +476,7 @@ public void OnPluginStart()
 	hcv_autoRespawn = UC_CreateConVar("gun_xp_auto_respawn", "0", "Should we auto respawn players?");
 	hcv_spawnProtectTime = UC_CreateConVar("gun_xp_respawn_immunitytime", "3", "From the moment the player moves, how long to spawn protect? AFK players are always spawn protected if there is auto respawn.");
 
+	hcv_gameMode = UC_CreateConVar("gun_xp_gamemode", "1", "1 = Surf, 2 = Zombie Plague");
 	hcv_IgnoreRoundWinConditions = UC_CreateConVar("gun_xp_ignore_round_win_conditions", "0", "0 - Disabled. 1 - Rounds are infinite. 2 - Rounds are infinite except for bomb events.");
 	hcv_xpKill = UC_CreateConVar("gun_xp_kill", "15", "Amount of xp you get per kill");
 	hcv_xpHS = UC_CreateConVar("gun_xp_bonus_hs", "5", "Amount of bonus xp you get per headshot kill");
@@ -587,9 +597,7 @@ public void OnMapStart()
 	for(int i=0;i < 4100;i++)
 		hRemoveTimer[i] = INVALID_HANDLE;
 		
-	#if defined RESET_ENABLED
 	CreateTimer(150.0, TellAboutShop,_, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
-	#endif
 }
 
 public Action RespawnAll(Handle hTimer)
@@ -632,7 +640,6 @@ public Action HudMessageXP(Handle hTimer)
 	return Plugin_Continue;
 }
 
-#if defined RESET_ENABLED
 
 public Action TellAboutShop(Handle hTimer)
 {
@@ -642,8 +649,6 @@ public Action TellAboutShop(Handle hTimer)
 	
 	return Plugin_Continue;
 }
-
-#endif
 
 public void OnClientAuthorized(int client)
 {
@@ -693,11 +698,16 @@ public Action Command_UnlockShop(int client, int args)
 
 	char TempFormat[200];
 
+	int gamemode = GetConVarInt(hcv_gameMode);
+
 	for(int i=0;i < g_aUnlockItems.Length;i++)
 	{
 		enProduct product;
 		g_aUnlockItems.GetArray(i, product);
 
+		if(!(gamemode & product.gamemode))
+			continue;
+			
 		if(Level[client] < product.minLevel)
 		{
 			FormatEx(TempFormat, sizeof(TempFormat), "%s - (%i XP) - (Level: %i)", product.name, product.cost, product.minLevel);
@@ -772,7 +782,6 @@ public Action Command_Guns(int client, int args)
 	return Plugin_Handled;
 }
 
-#if defined RESET_ENABLED
 public Action Command_Reset(int client, int args)
 {
 	CalculateStats(client);
@@ -871,10 +880,15 @@ public Action Command_Skills(int client, int args)
 
 	AddMenuItem(hMenu, "", "Reset skills [FREE]");
 
+	int gamemode = GetConVarInt(hcv_gameMode);
+
 	for(int i=0;i < g_aSkills.Length;i++)
 	{
 		enSkill skill;
 		g_aSkills.GetArray(i, skill);
+
+		if(!(gamemode & skill.gamemode))
+			continue;
 
 		Format(TempFormat, sizeof(TempFormat), "%s (%i RESETS) - (%s)", skill.name, skill.cost, g_bUnlockedSkills[client][i] ? "Bought" : "Not Bought");
 		AddMenuItem(hMenu, "", TempFormat, g_bUnlockedSkills[client][i] || GetClientTempResets(client) < skill.cost ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
@@ -933,8 +947,6 @@ public int SkillShop_MenuHandler(Handle hMenu, MenuAction action, int client, in
 	}	
 }	
 
-
-#endif // #if defined RESET_ENABLED
 public Action ShowChoiceMenu(int client)
 {	
 	CalculateStats(client);
@@ -1232,10 +1244,8 @@ public Action Event_PlayerDeath(Handle hEvent, char[] Name, bool dontBroadcast)
 		PrintToChatAll("\x01Congratulations!\x03 %N\x01 has\x05 leveled up\x01 to\x04 %i", attacker, Level[attacker]);
 	}
 	
-	#if defined RESET_ENABLED
 	if(Level[attacker] >= MAX_LEVEL)
 		PrintToChat(attacker, "\x01Type\x05 !reset\x01 to reset your xp for skills.");
-	#endif
 }
 
 public Action Event_OtherDeath(Handle hEvent, char[] Name, bool dontBroadcast)
@@ -1318,10 +1328,8 @@ public Action Event_OtherDeath(Handle hEvent, char[] Name, bool dontBroadcast)
 		PrintToChatAll("\x01Congratulations!\x03 %N\x01 has\x05 leveled up\x01 to\x04 %i", attacker, Level[attacker]);
 	}
 	
-	#if defined RESET_ENABLED
 	if(Level[attacker] >= MAX_LEVEL)
 		PrintToChat(attacker, "\x01Type\x05 !reset\x01 to reset your xp for skills.");
-	#endif
 }
 
 // These event crash the server easily. Let's hope I remember...
@@ -1377,10 +1385,8 @@ public Action Event_RoundMVP(Handle hEvent, char[] Name, bool dontBroadcast)
 		PrintToChatAll("\x01Congratulations!\x03 %N\x01 has\x05 leveled up\x01 to\x04 %i", client, Level[client]);
 	}
 	
-	#if defined RESET_ENABLED
 	if(Level[client] >= MAX_LEVEL)
 		PrintToChat(client, "\x01Type\x05 !reset\x01 to reset your xp for skills.");
-	#endif
 }
 
 public Action Event_PlayerSpawn(Handle hEvent, char[] Name, bool dontBroadcast)
@@ -1748,17 +1754,22 @@ public void SQLTrans_PlayerLoaded(Database db, any DP, int numQueries, DBResultS
 		char SkillIdentifier[32];
 		SQL_FetchStringByName(results[1], "SkillIdentifier", SkillIdentifier, sizeof(SkillIdentifier));
 
+		int gamemode = GetConVarInt(hcv_gameMode);
+
 		for(int i=0;i < g_aSkills.Length;i++)
 		{
 			enSkill iSkill;
 			g_aSkills.GetArray(i, iSkill);
 			
-			if(StrEqual(SkillIdentifier, iSkill.identifier))
+			if(gamemode & iSkill.gamemode)
 			{
-				g_bUnlockedSkills[client][i] = true;
+				if(StrEqual(SkillIdentifier, iSkill.identifier))
+				{
+					g_bUnlockedSkills[client][i] = true;
 
-				// I don't like breaking in two for loops...
-				i = g_aSkills.Length;
+					// I don't like breaking in two for loops...
+					i = g_aSkills.Length;
+				}
 			}
 		}
 	}

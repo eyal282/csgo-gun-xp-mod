@@ -11,7 +11,7 @@
 // sClassname = classname of weapon required to use this product. Only affects min level.
 native void GunXP_UnlockShop_ReplenishProducts(int client, bool bOnlyUL);
 
-native int GunXP_UnlockShop_RegisterProduct(char sName[64], char sDescription[512], int cost, int minLevel, char[] sClassname);
+native int GunXP_UnlockShop_RegisterProduct(char sName[64], char sDescription[512], int cost, int minLevel, char[] sClassname, int gamemode);
 native bool GunXP_UnlockShop_IsProductUnlocked(int client, int productIndex);
 
 int replenishIndex = -1;
@@ -38,7 +38,7 @@ public void OnPluginStart()
 
 public void RegisterProduct()
 {
-    replenishIndex = GunXP_UnlockShop_RegisterProduct("Replenish Everything On Kill", "Whenever you make a kill, you will get every unlock shop product as if you spawned.\nIf Zeus is enabled, you will also gain a new Zeus\nDoes not apply for skills.", 400, 0, "");
+    replenishIndex = GunXP_UnlockShop_RegisterProduct("Replenish Everything On Kill", "Whenever you make a kill, you will get every unlock shop product as if you spawned.\nIf Zeus is enabled, you will also gain a new Zeus\nDoes not apply for skills.", 400, 0, "", 1);
 }
 
 public Action Event_PlayerDeath(Handle hEvent, const char[] sName, bool dontBroadcast)
