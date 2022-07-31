@@ -64,7 +64,7 @@ public void OnPluginStart()
 
 public void RegisterProduct()
 {
-    baseballBatIndex = GunXP_UnlockShop_RegisterProduct("Baseball Bat", "Sends players flying\nDeals 300 damage on backstabs and right click\nDeals 90 damage on left clicks", 90, 0, "weapon_knife", 1);
+    baseballBatIndex = GunXP_UnlockShop_RegisterProduct("Baseball Bat", "Sends players flying\nDeals 300 damage on backstabs and right click\nDeals 90 damage on left clicks", 90, 0, "weapon_knife", 3);
 }
 
 public Action Event_PlayerSpawn(Handle hEvent, const char[] sName, bool dontBroadcast)

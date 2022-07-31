@@ -291,6 +291,9 @@ public any Native_IsSkillUnlocked(Handle caller, int numParams)
 
 	int skillIndex = GetNativeCell(2);
 
+	if(!IsClientEligibleByGamemode(client))
+		return false;
+
 	return g_bUnlockedSkills[client][skillIndex];
 }
 
@@ -348,6 +351,9 @@ public any Native_IsProductUnlocked(Handle caller, int numParams)
 	int client = GetNativeCell(1);
 
 	int productIndex = GetNativeCell(2);
+
+	if(!IsClientEligibleByGamemode(client))
+		return false;
 
 	return g_bUnlockedProducts[client][productIndex];
 }
@@ -476,7 +482,7 @@ public void OnPluginStart()
 	hcv_autoRespawn = UC_CreateConVar("gun_xp_auto_respawn", "0", "Should we auto respawn players?");
 	hcv_spawnProtectTime = UC_CreateConVar("gun_xp_respawn_immunitytime", "3", "From the moment the player moves, how long to spawn protect? AFK players are always spawn protected if there is auto respawn.");
 
-	hcv_gameMode = UC_CreateConVar("gun_xp_gamemode", "1", "1 = Surf, 2 = Zombie Plague");
+	hcv_gameMode = UC_CreateConVar("gun_xp_gamemode", "1", "1 = Surf, 2 = Zombie. Zombie Mod prevents Terrorist team from using the plugin.");
 	hcv_IgnoreRoundWinConditions = UC_CreateConVar("gun_xp_ignore_round_win_conditions", "0", "0 - Disabled. 1 - Rounds are infinite. 2 - Rounds are infinite except for bomb events.");
 	hcv_xpKill = UC_CreateConVar("gun_xp_kill", "15", "Amount of xp you get per kill");
 	hcv_xpHS = UC_CreateConVar("gun_xp_bonus_hs", "5", "Amount of bonus xp you get per headshot kill");
@@ -1333,17 +1339,18 @@ public Action Event_OtherDeath(Handle hEvent, char[] Name, bool dontBroadcast)
 }
 
 // These event crash the server easily. Let's hope I remember...
+// Edit: I forgot D:
 public Action Event_BombExploded(Handle hEvent, char[] Name, bool dontBroadcast)
 {
 	// This is not mp_ignore_round_win_conditions.
-	if(GetConVarInt(hcv_IgnoreRoundWinConditions) == 2)
-		SetConVarBool(hcv_mpIgnoreRoundWinConditions, false);
+	//if(GetConVarInt(hcv_IgnoreRoundWinConditions) == 2)
+	//	SetConVarBool(hcv_mpIgnoreRoundWinConditions, false);
 }
 public Action Event_BombDefused(Handle hEvent, char[] Name, bool dontBroadcast)
 {
 	// This is not mp_ignore_round_win_conditions.
-	if(GetConVarInt(hcv_IgnoreRoundWinConditions) == 2)
-		SetConVarBool(hcv_mpIgnoreRoundWinConditions, false);
+	//if(GetConVarInt(hcv_IgnoreRoundWinConditions) == 2)
+	//	SetConVarBool(hcv_mpIgnoreRoundWinConditions, false);
 }
 public Action Event_RoundMVP(Handle hEvent, char[] Name, bool dontBroadcast)
 {
@@ -1407,6 +1414,9 @@ public Action Event_PlayerSpawn(Handle hEvent, char[] Name, bool dontBroadcast)
 public void Event_PlayerSpawnFrame(int UserId)
 {
 	int client = GetClientOfUserId(UserId);
+
+	if(!IsClientEligibleByGamemode(client))
+		return;
 	
 	StripPlayerWeapons(client);
 	
@@ -2126,4 +2136,14 @@ stock int Abs(int value)
 		return value;
 
 	return -1 * value;
+}
+
+stock bool IsClientEligibleByGamemode(int client)
+{
+	int gameMode = GetConVarInt(hcv_gameMode);
+
+	if(gameMode != 2)
+		return true;
+
+	return GetClientTeam(client) == CS_TEAM_CT;
 }

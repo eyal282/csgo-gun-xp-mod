@@ -42,6 +42,8 @@ public void RegisterProduct()
 
 public void GunXP_UnlockShop_OnProductBuy(int client, int productIndex)
 {
+	PrintToChat(client, "%i - %i - %i", productIndex, vestHelmIndex, IsPlayerAlive(client));
+	
     if(productIndex == vestHelmIndex && IsPlayerAlive(client))
     {
         GivePlayerItem(client, "item_assaultsuit");
@@ -60,11 +62,11 @@ public Action Event_PlayerSpawn(Handle hEvent, const char[] sName, bool dontBroa
 
     if(GunXP_UnlockShop_IsProductUnlocked(client, vestHelmIndex))
     {
-        CreateTimer(0.5, Timer_GiveBumpMines, GetClientUserId(client));
+        CreateTimer(0.5, Timer_GiveVestHelm, GetClientUserId(client));
     }
 }
 
-public Action Timer_GiveBumpMines(Handle hTimer, int UserId)
+public Action Timer_GiveVestHelm(Handle hTimer, int UserId)
 {
     int client = GetClientOfUserId(UserId);
 
