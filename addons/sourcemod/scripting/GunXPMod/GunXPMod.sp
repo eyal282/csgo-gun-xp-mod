@@ -30,6 +30,7 @@ public Plugin myinfo = {
 
 bool SaveLastGuns[MAXPLAYERS+1];
 
+Handle hcv_FFA = INVALID_HANDLE;
 Handle hcv_gameMode = INVALID_HANDLE;
 Handle hcv_xpKill = INVALID_HANDLE;
 Handle hcv_xpHS = INVALID_HANDLE;
@@ -47,14 +48,10 @@ Handle hcv_VIPMultiplier = INVALID_HANDLE;
 Handle hcv_Zeus = INVALID_HANDLE;
 
 Handle hcv_FriendlyFire = INVALID_HANDLE;
-Handle hcv_mpIgnoreRoundWinConditions = INVALID_HANDLE;
 Handle hcv_spawnProtectTime = INVALID_HANDLE;
 
 Handle hcv_IgnoreRoundWinConditions = INVALID_HANDLE;
 Handle hcv_autoRespawn = INVALID_HANDLE;
-
-Handle hRegenTimer[MAXPLAYERS+1] = INVALID_HANDLE;
-Handle hRemoveTimer[4100] = INVALID_HANDLE;
 
 int KillStreak[MAXPLAYERS+1];
 
@@ -68,7 +65,7 @@ Handle cpLastPistol, cpLastRifle;
 
 bool TookWeapons[MAXPLAYERS+1];
 
-int StartOfRifles = 10; // Change to the beginning of rifles in the levels, remember to count [0]
+int StartOfRifles = 9; // Change to the beginning of rifles in the levels, remember to count [0]
 
 int HUD_INFO_CHANNEL = 25;
 int HUD_KILL_CHANNEL = 82;
@@ -112,6 +109,7 @@ int g_bUnlockedSkills[MAXPLAYERS+1][MAX_ITEMS];
 
 GlobalForward g_fwOnUnlockShopBuy;
 GlobalForward g_fwOnSkillBuy;
+GlobalForward g_fwOnSpawned;
 
 /*
 new const String:FORBIDDEN_WEAPONS[][] =
@@ -240,6 +238,8 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length
 	CreateNative("GunXP_UnlockShop_ReplenishProducts", Native_ReplenishProducts);
 	CreateNative("GunXP_UnlockShop_IsProductUnlocked", Native_IsProductUnlocked);
 
+	CreateNative("GunXP_IsFFA", Native_IsFFA);
+
 	RegPluginLibrary("GunXPMod");
 	RegPluginLibrary("GunXP_UnlockShop");
 	RegPluginLibrary("GunXP_SkillShop");
@@ -358,6 +358,11 @@ public any Native_IsProductUnlocked(Handle caller, int numParams)
 	return g_bUnlockedProducts[client][productIndex];
 }
 
+public any Native_IsFFA(Handle caller, int numParams)
+{
+	return GetConVarBool(FindConVar("mp_teammates_are_enemies"));
+}
+
 
 // This basically means "Treat the situation as if we bought every product again"
 
@@ -445,6 +450,7 @@ public void OnPluginStart()
 {
 	g_fwOnUnlockShopBuy = CreateGlobalForward("GunXP_UnlockShop_OnProductBuy", ET_Ignore, Param_Cell, Param_Cell);
 	g_fwOnSkillBuy = CreateGlobalForward("GunXP_SkillShop_OnSkillBuy", ET_Ignore, Param_Cell, Param_Cell);
+	g_fwOnSpawned = CreateGlobalForward("GunXP_OnPlayerSpawned", ET_Ignore, Param_Cell);
 
 	g_aUnlockItems = CreateArray(sizeof(enProduct));
 	g_aSkills = CreateArray(sizeof(enSkill));
@@ -464,12 +470,9 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_skill", Command_Skills);
 	RegConsoleCmd("sm_rpg", Command_Skills);
 	
-	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
 	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Post);
 	HookEvent("other_death", Event_OtherDeath, EventHookMode_Post);
 	HookEvent("round_mvp", Event_RoundMVP, EventHookMode_Post);
-	HookEvent("bomb_exploded", Event_BombExploded, EventHookMode_PostNoCopy);
-	HookEvent("bomb_defused", Event_BombDefused, EventHookMode_PostNoCopy);
 	HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Post);
 	HookEvent("weapon_outofammo", Event_WeaponOutOfAmmo, EventHookMode_Pre);
 	HookEvent("player_disconnect", Event_PlayerDisconnect, EventHookMode_Post);
@@ -477,11 +480,11 @@ public void OnPluginStart()
 	HookUserMessage(GetUserMessageId("TextMsg"), Message_TextMsg, true); 
 	
 	hcv_FriendlyFire = FindConVar("mp_friendlyfire");
-	hcv_mpIgnoreRoundWinConditions = FindConVar("mp_ignore_round_win_conditions");
 	SetConVarString(UC_CreateConVar("gun_xp_version", PLUGIN_VERSION), PLUGIN_VERSION);
 	hcv_autoRespawn = UC_CreateConVar("gun_xp_auto_respawn", "0", "Should we auto respawn players?");
 	hcv_spawnProtectTime = UC_CreateConVar("gun_xp_respawn_immunitytime", "3", "From the moment the player moves, how long to spawn protect? AFK players are always spawn protected if there is auto respawn.");
 
+	hcv_FFA = UC_CreateConVar("gun_xp_ffa", "0", "0 = No team killing, 1 = Free for All. 2 = Free for All unless bomb map");
 	hcv_gameMode = UC_CreateConVar("gun_xp_gamemode", "1", "1 = Surf, 2 = Zombie. Zombie Mod prevents Terrorist team from using the plugin.");
 	hcv_IgnoreRoundWinConditions = UC_CreateConVar("gun_xp_ignore_round_win_conditions", "0", "0 - Disabled. 1 - Rounds are infinite. 2 - Rounds are infinite except for bomb events.");
 	hcv_xpKill = UC_CreateConVar("gun_xp_kill", "15", "Amount of xp you get per kill");
@@ -568,20 +571,6 @@ public Action Message_TextMsg(UserMsg msg_id, Handle msg, const int[] players, i
     return Plugin_Continue; 
 } 
 
-/*
-public Action:CS_OnCSWeaponDrop(client, entity)
-{
-	hRemoveTimer[entity] = CreateTimer(5.0, RemoveWeapon, entity, TIMER_FLAG_NO_MAPCHANGE);
-}
-
-public Action:RemoveWeapon(Handle:hTimer, entity)
-{
-	AcceptEntityInput(entity, "Kill");
-	
-	hRemoveTimer[entity] = INVALID_HANDLE;
-}
-*/
-
 public void OnClientConnected(int client)
 {
 	SaveLastGuns[client] = false;
@@ -591,44 +580,56 @@ public void OnClientConnected(int client)
 
 public void OnMapStart()
 {
+	CreateTimer(2.5, SetConvars, _, TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer(0.3, RespawnPlayers, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 	CreateTimer(2.5, HudMessageXP, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
-	
-	for(int i=0;i < MAXPLAYERS+1;i++)
-	{
-		hRegenTimer[i] = INVALID_HANDLE;
-	}
-	
-	CreateTimer(2.5, RespawnAll, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
-	
-	for(int i=0;i < 4100;i++)
-		hRemoveTimer[i] = INVALID_HANDLE;
 		
 	CreateTimer(150.0, TellAboutShop,_, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 }
 
-public Action RespawnAll(Handle hTimer)
+public Action RespawnPlayers(Handle hTimer)
 {
-	if(!GetConVarBool(hcv_autoRespawn))
-		return Plugin_Continue;
-
 	for(int i=1;i <= MaxClients;i++)
 	{
-		if(!IsValidPlayer(i))
+		if(!IsClientInGame(i))
 			continue;
-			
+
+		else if(GameRules_GetProp("m_bFreezePeriod"))
+			continue;
+
+		else if(GameRules_GetPropFloat("m_flRestartRoundTime") > 0.0)
+			continue;
+
 		else if(IsPlayerAlive(i))
 			continue;
-		
-		else if(GetClientTeam(i) != CS_TEAM_CT && GetClientTeam(i) != CS_TEAM_T)
+
+		else if(GetClientTeam(i) != CS_TEAM_T && GetClientTeam(i) != CS_TEAM_CT)
 			continue;
-			
-	
+
 		CS_RespawnPlayer(i);
 	}
-	
-	return Plugin_Continue;
 }
+public Action SetConvars(Handle hTimer)
+{
+	switch(GetConVarInt(hcv_FFA))
+	{
+		case 0: ServerCommand("mp_teammates_are_enemies 0");
 
+		case 1: ServerCommand("mp_teammates_are_enemies 0");
+
+		case 2:
+		{
+			if(GameRules_GetProp("m_bMapHasBombTarget"))
+				ServerCommand("mp_teammates_are_enemies 0");
+
+			else
+				ServerCommand("mp_teammates_are_enemies 1");
+		}
+	}
+
+	ServerCommand("mp_respawn_on_death_ct 0");
+	ServerCommand("mp_respawn_on_death_t 0");
+}
 public Action HudMessageXP(Handle hTimer)
 {
 	for(int i=1;i <= MaxClients;i++)
@@ -730,6 +731,7 @@ public Action Command_UnlockShop(int client, int args)
 	SetMenuTitle(hMenu, "Choose perks to unlock:\nThe perks stay until until you disconnect.");
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
 
+	return Plugin_Handled;
 }
 
 public int UnlockShop_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
@@ -1126,13 +1128,28 @@ public void GiveGuns(int client)
 	TookWeapons[client] = true;
 }
 
-public Action Event_RoundStart(Handle hEvent, char[] Name, bool dontBroadcast)
+public Action CS_OnTerminateRound(float &delay, CSRoundEndReason &reason)
 {
-	// This is not mp_ignore_round_win_conditions.
-	if(GetConVarInt(hcv_IgnoreRoundWinConditions) > 0)
+	// This is gun_xp_ignore_round_win_conditions
+	switch(GetConVarInt(hcv_IgnoreRoundWinConditions))
 	{
-		SetConVarFlags(hcv_mpIgnoreRoundWinConditions, GetConVarFlags(hcv_mpIgnoreRoundWinConditions) & ~FCVAR_NOTIFY);
-		SetConVarBool(hcv_mpIgnoreRoundWinConditions, true);
+		case 1: return Plugin_Handled;
+		case 2:
+		{
+			if(reason == CSRoundEnd_BombDefused || reason == CSRoundEnd_TargetBombed)
+				return Plugin_Continue;
+			
+			else if(reason == CSRoundEnd_TargetSaved)
+			{
+				GameRules_SetPropFloat("m_flGameStartTime", GetGameTime());
+				GameRules_SetPropFloat("m_fRoundStartTime", GetGameTime());
+				GameRules_SetProp("m_iRoundTime", 60);
+
+				return Plugin_Handled;
+			}
+			return Plugin_Handled;
+		}
+		default: return Plugin_Continue;
 	}
 }
 
@@ -1339,19 +1356,6 @@ public Action Event_OtherDeath(Handle hEvent, char[] Name, bool dontBroadcast)
 }
 
 // These event crash the server easily. Let's hope I remember...
-// Edit: I forgot D:
-public Action Event_BombExploded(Handle hEvent, char[] Name, bool dontBroadcast)
-{
-	// This is not mp_ignore_round_win_conditions.
-	//if(GetConVarInt(hcv_IgnoreRoundWinConditions) == 2)
-	//	SetConVarBool(hcv_mpIgnoreRoundWinConditions, false);
-}
-public Action Event_BombDefused(Handle hEvent, char[] Name, bool dontBroadcast)
-{
-	// This is not mp_ignore_round_win_conditions.
-	//if(GetConVarInt(hcv_IgnoreRoundWinConditions) == 2)
-	//	SetConVarBool(hcv_mpIgnoreRoundWinConditions, false);
-}
 public Action Event_RoundMVP(Handle hEvent, char[] Name, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
@@ -1415,6 +1419,10 @@ public void Event_PlayerSpawnFrame(int UserId)
 {
 	int client = GetClientOfUserId(UserId);
 
+	if(client == 0)
+		return;
+
+	else if(!IsPlayerAlive(client))
 	if(!IsClientEligibleByGamemode(client))
 		return;
 	
@@ -1450,6 +1458,15 @@ public void Event_PlayerSpawnFrame(int UserId)
 
 	if(PlayerHasWeapon(client, "weapon_knife") == -1)
 		CreateTimer(0.1, GiveKnifeAgain, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE); 
+
+	SetEntityMaxHealth(client, 100);
+
+	Call_StartForward(g_fwOnSpawned);
+
+	Call_PushCell(client);
+
+	Call_Finish();
+
 }
 
 public Action GiveKnifeAgain(Handle hTimer, int UserId)
@@ -1929,11 +1946,6 @@ stock void GetServerIP(char[] IPAddress, int length)
 	Format(IPAddress, length, "%d.%d.%d.%d:%i", pieces[0], pieces[1], pieces[2], pieces[3], GetConVarInt(FindConVar("hostport")));
 }
 
-stock void GetEntityHealth(int entity)
-{
-	return GetEntProp(entity, Prop_Send, "m_iHealth");
-}
-
 // Returns -1 if not found, entity index if found
 stock int PlayerHasWeapon(int client, const char[] Classname)
 {
@@ -2146,4 +2158,19 @@ stock bool IsClientEligibleByGamemode(int client)
 		return true;
 
 	return GetClientTeam(client) == CS_TEAM_CT;
+}
+
+stock void SetEntityMaxHealth(int entity, int amount)
+{
+	SetEntProp(entity, Prop_Data, "m_iMaxHealth", amount);
+}
+
+stock int GetEntityMaxHealth(int entity)
+{
+	return GetEntProp(entity, Prop_Data, "m_iMaxHealth");
+}
+
+stock int GetEntityHealth(int entity)
+{
+	return GetEntProp(entity, Prop_Send, "m_iHealth");
 }

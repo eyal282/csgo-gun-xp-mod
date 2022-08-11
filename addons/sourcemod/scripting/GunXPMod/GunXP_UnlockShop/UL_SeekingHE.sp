@@ -10,6 +10,7 @@
 
 #define MIN_FLOAT -2147483647.0
 
+native bool GunXP_IsFFA();
 native int GunXP_UnlockShop_RegisterProduct(char sName[64], char sDescription[512], int cost, int minLevel, char[] sClassname, int gamemode);
 native bool GunXP_UnlockShop_IsProductUnlocked(int client, int productIndex);
 
@@ -36,35 +37,15 @@ public void OnPluginStart()
 
 public void RegisterProduct()
 {
-	seekingGrenadeIndex = GunXP_UnlockShop_RegisterProduct("Seeking HE Grenade", "Spawn with an HE Grenade\nHE Grenade seeks players in range.", 150, 0, "weapon_hegrenade", 1);
+	seekingGrenadeIndex = GunXP_UnlockShop_RegisterProduct("Seeking HE Grenade", "Spawn with an HE Grenade\nHE Grenade seeks players in range.", 0, 0, "weapon_hegrenade", 1);
 }
-public Action Event_PlayerSpawn(Handle hEvent, const char[] sName, bool dontBroadcast)
+
+public void GunXP_OnPlayerSpawned(int client)
 {
-    int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
-
-    if(client == 0)
-        return;
-
-    else if(!IsPlayerAlive(client))
-        return;
-
     if(GunXP_UnlockShop_IsProductUnlocked(client, seekingGrenadeIndex))
-    {
-        CreateTimer(0.5, Timer_GiveGrenade, GetClientUserId(client));
+    {   
+		GivePlayerItem(client, "weapon_hegrenade");
     }
-}
-
-public Action Timer_GiveGrenade(Handle hTimer, int UserId)
-{
-    int client = GetClientOfUserId(UserId);
-
-    if(client == 0)
-        return;
-
-    else if(!IsPlayerAlive(client))
-        return;
-
-    GivePlayerItem(client, "weapon_hegrenade");
 }
 
 public void GunXP_UnlockShop_OnProductBuy(int client, int productIndex)
@@ -74,6 +55,8 @@ public void GunXP_UnlockShop_OnProductBuy(int client, int productIndex)
         GivePlayerItem(client, "weapon_hegrenade");
     }
 }
+
+
 
 stock bool IsPlayer(int client)
 {
@@ -144,5 +127,88 @@ public void OnEntityCreated(int entity, const char[] classname)
 
 public void OnSpawnPost(int entity)
 {
-    
+    SDKHook(entity, SDKHook_ThinkPost, SDKEvent_OnGrenadeThink);
+}
+
+public void SDKEvent_OnGrenadeThink(int entity)
+{
+	int owner = GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity");
+
+	if(owner == -1)
+		return;
+
+	int winner;
+	float fWinnerDistance;
+
+	float fNadeOrigin[3];
+	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", fNadeOrigin);
+
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i))
+			continue;
+
+		else if(!IsPlayerAlive(i))
+			continue;
+
+		else if(i == owner)
+			continue;
+
+		else if(GetClientTeam(i) == GetClientTeam(owner) && !GunXP_IsFFA())
+			continue;
+
+		float fOrigin[3];
+		GetClientEyePosition(i, fOrigin);
+
+		float dist = GetVectorDistance(fOrigin, fNadeOrigin);
+
+		if(dist > 600.0)
+			continue;
+
+		if (winner == 0)
+		{
+			winner = i;
+			fWinnerDistance = dist;
+		}
+
+		else if (fWinnerDistance > dist)
+		{
+			winner = i;
+			fWinnerDistance = dist;
+		}
+	}
+
+	if (winner != 0)
+	{
+		if(fWinnerDistance > 3.0)
+			FollowTargetPlayer(entity, winner, 500.0);
+		
+		else
+		{
+			AcceptEntityInput(entity, "SetParent", winner, entity);
+			SDKUnhook(entity, SDKHook_ThinkPost, SDKEvent_OnGrenadeThink);
+		}
+	}
+}
+
+stock void FollowTargetPlayer(int entity, int target, float speed) 
+{
+	float fOrigin[3], fTargetOrigin[3];
+
+	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", fOrigin);
+	GetClientEyePosition(target, fTargetOrigin);
+
+	float fDiff[3];
+	fDiff[0] = fTargetOrigin[0] - fOrigin[0];
+	fDiff[1] = fTargetOrigin[1] - fOrigin[1];
+	fDiff[2] = fTargetOrigin[2] - fOrigin[2];
+
+	float length = GetVectorLength(fDiff);
+
+	float fVelocity[3];
+	fVelocity[0] = fDiff[0] * (speed / length);
+	fVelocity[1] = fDiff[1] * (speed / length);
+	fVelocity[2] = fDiff[2] * (speed / length);
+
+	TeleportEntity(entity, NULL_VECTOR, NULL_VECTOR, fVelocity);
 }

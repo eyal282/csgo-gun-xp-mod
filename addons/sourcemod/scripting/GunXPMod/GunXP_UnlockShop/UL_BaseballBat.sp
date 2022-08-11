@@ -19,19 +19,10 @@ int wmBaseball;
 
 public void OnMapStart()
 {
-    vmBaseball = PrecacheModel("models/weapons/eminem/adidas_baseball_bat/v_adidas_baseball_bat.mdl");
-    wmBaseball = PrecacheModel("models/weapons/eminem/adidas_baseball_bat/w_adidas_baseball_bat.mdl");
+	vmBaseball = PrecacheModel("models/weapons/eminem/adidas_baseball_bat/v_adidas_baseball_bat.mdl");
+	wmBaseball = PrecacheModel("models/weapons/eminem/adidas_baseball_bat/w_adidas_baseball_bat.mdl");
 
-	AddFileToDownloadsTable("models/weapons/eminem/adidas_baseball_bat/v_adidas_baseball_bat.dx90.vtx");
-	AddFileToDownloadsTable("models/weapons/eminem/adidas_baseball_bat/v_adidas_baseball_bat.mdl");
-	AddFileToDownloadsTable("models/weapons/eminem/adidas_baseball_bat/v_adidas_baseball_bat.vvd");
-    
-	AddFileToDownloadsTable("materials/models/weapons/eminem/adidas_baseball_bat/adidasbat.vmt");
-    AddFileToDownloadsTable("materials/models/weapons/eminem/adidas_baseball_bat/diffuse.vtf");
-    AddFileToDownloadsTable("materials/models/weapons/eminem/adidas_baseball_bat/gloss.vtf");
-    AddFileToDownloadsTable("materials/models/weapons/eminem/adidas_baseball_bat/normal.vtf");
-
-
+	AddFolderToDownloadsTable("models/weapons/eminem/adidas_baseball_bat");
 }
 
 public void OnLibraryAdded(const char[] name)
@@ -49,7 +40,7 @@ public void OnConfigsExecuted()
 }
 public void OnPluginStart()
 {
-    RegisterProduct();
+	RegisterProduct();
 
 	for(int i=1;i <= MaxClients;i++)
 	{
@@ -58,8 +49,6 @@ public void OnPluginStart()
 			
 		OnClientPutInServer(i);
 	}
-
-    HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Post);
 }
 
 public void RegisterProduct()
@@ -67,16 +56,8 @@ public void RegisterProduct()
     baseballBatIndex = GunXP_UnlockShop_RegisterProduct("Baseball Bat", "Sends players flying\nDeals 300 damage on backstabs and right click\nDeals 90 damage on left clicks", 90, 0, "weapon_knife", 3);
 }
 
-public Action Event_PlayerSpawn(Handle hEvent, const char[] sName, bool dontBroadcast)
+public void GunXP_OnPlayerSpawned(int client)
 {
-    int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
-
-    if(client == 0)
-        return;
-
-    else if(!IsPlayerAlive(client))
-        return;
-
     if(GunXP_UnlockShop_IsProductUnlocked(client, baseballBatIndex))
     {
         FPVMI_AddViewModelToClient(client, "weapon_knife", vmBaseball);
@@ -178,4 +159,77 @@ stock void GetVelocityFromOrigin(int ent, float fOrigin[3], float fSpeed, float 
 	fVelocity[0] = fDistance[0] / fTime;
 	fVelocity[1] = fDistance[1] / fTime;
 	fVelocity[2] = fDistance[2] / fTime;
+}
+
+
+//-----STOCKS-----//
+
+
+char ValidFormats[][] = //VALID, DOWNLOADABLE FILE FORMATS
+{
+	"mdl", "phy", "vtx", "vvd", //Model files
+	"vmt", "vtf", "png", "svg", //Texture and material files
+	"mp3", "wav", "pcf" //Sound files
+};
+
+void AddFolderToDownloadsTable(char[] Folder)
+{
+	if(DirExists(Folder))
+	{
+		Handle DIR = OpenDirectory(Folder);
+		char BUFFER[PLATFORM_MAX_PATH];
+		FileType FILETYPE = FileType_Unknown;
+		
+		while(ReadDirEntry(DIR, BUFFER, sizeof(BUFFER), FILETYPE))
+		{
+			if(!StrEqual(BUFFER, "") && !StrEqual(BUFFER, ".") && !StrEqual(BUFFER, ".."))
+			{
+				Format(BUFFER, sizeof(BUFFER), "%s/%s", Folder, BUFFER);
+				if(FILETYPE == FileType_File)
+				{
+					if(FileExists(BUFFER, true) && IsFileDownloadable(BUFFER))
+					{
+						AddFileToDownloadsTable(BUFFER);
+					}
+				}
+				else if(FILETYPE == FileType_Directory)
+				{
+					AddFolderToDownloadsTable(BUFFER);
+				}
+			}
+		}
+		CloseHandle(DIR);
+	}
+	else
+	{
+		LogError("Automatic Downloader: Directory not exists - \"%s\"", Folder);
+	}
+}
+
+
+bool IsFileDownloadable(char[] string)
+{
+	char buffer[PLATFORM_MAX_PATH];
+	GetFileExtension(string, buffer, sizeof(buffer));
+    
+	for(int i = 0; i < sizeof(ValidFormats); i++)
+	{
+		if(StrEqual(buffer, ValidFormats[i], false))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+bool GetFileExtension(const char[] filepath, char[] filetype, int filetypelen)
+{
+    int loc = FindCharInString(filepath, '.', true);
+    if(loc == -1)
+    {
+        filetype[0] = '\0';
+        return false;
+    }
+    strcopy(filetype, filetypelen, filepath[loc + 1]);
+    return true;
 }

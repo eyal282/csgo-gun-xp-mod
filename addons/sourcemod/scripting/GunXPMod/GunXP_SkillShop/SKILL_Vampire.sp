@@ -10,8 +10,6 @@
 
 #define MIN_FLOAT -2147483647.0
 
-Handle hTimer_Spawn[MAXPLAYERS+1];
-
 // Make identifier as descriptive as possible.
 native int GunXP_SkillShop_RegisterSkill(char identifier[32], char name[64], char description[512], int cost, int gamemode);
 native bool GunXP_SkillShop_IsSkillUnlocked(int client, int skillIndex);
@@ -35,8 +33,6 @@ public void OnPluginStart()
 {
     RegisterSkill();
 
-    HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Post);
-
     for (int i = 1; i <= MaxClients; i++)
     {
         if(!IsClientInGame(i))
@@ -51,14 +47,6 @@ public void RegisterSkill()
     vampireIndex = GunXP_SkillShop_RegisterSkill("VampireAndHP", "Vampire", "30% HP regen when you deal damage.\n+30 HP on spawn", 1, 1);
 }
 
-public void OnClientDisconnect(int client)
-{
-	if(hTimer_Spawn[client] != INVALID_HANDLE)
-	{
-		CloseHandle(hTimer_Spawn[client]);
-		hTimer_Spawn[client] = INVALID_HANDLE;
-	}
-}
 public void OnClientPutInServer(int client)
 {
 	SDKHook(client, SDKHook_OnTakeDamageAlivePost, Event_TakeDamageAlivePost);
@@ -87,33 +75,13 @@ public void Event_TakeDamageAlivePost(int victim, int attacker, int inflictor, f
         SetEntityHealth(attacker, GetEntityHealth(attacker) + HPToGive);
 }
 
-public Action Event_PlayerSpawn(Handle hEvent, const char[] sName, bool dontBroadcast)
+public void GunXP_OnPlayerSpawned(int client)
 {
-    int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
-
-    if(client == 0)
-        return;
-
-    else if(!IsPlayerAlive(client))
-        return;
-
-    SetEntityMaxHealth(client, 100);
-    
-    if(GunXP_SkillShop_IsSkillUnlocked(client, vampireIndex))
-    {
-        hTimer_Spawn[client] = CreateTimer(0.5, Timer_GiveHealth, client, TIMER_FLAG_NO_MAPCHANGE);
-    }
-}
-
-public Action Timer_GiveHealth(Handle hTimer, int client)
-{
-	hTimer_Spawn[client] = INVALID_HANDLE;
-
-	if(!IsPlayerAlive(client))
-		return;
-
-    SetEntityHealth(client, GetEntityHealth(client) + 30);
-    SetEntityMaxHealth(client, GetEntityMaxHealth(client) + 30);
+	if(GunXP_SkillShop_IsSkillUnlocked(client, vampireIndex))
+	{
+    	SetEntityHealth(client, GetEntityHealth(client) + 30);
+    	SetEntityMaxHealth(client, GetEntityMaxHealth(client) + 30);
+	}
 }
 
 

@@ -31,8 +31,6 @@ public void OnConfigsExecuted()
 public void OnPluginStart()
 {
     RegisterProduct();
-
-    HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Post);
 }
 
 public void RegisterProduct()
@@ -41,25 +39,15 @@ public void RegisterProduct()
 }
 
 public void GunXP_UnlockShop_OnProductBuy(int client, int productIndex)
-{
-	PrintToChat(client, "%i - %i - %i", productIndex, vestHelmIndex, IsPlayerAlive(client));
-	
+{	
     if(productIndex == vestHelmIndex && IsPlayerAlive(client))
     {
         GivePlayerItem(client, "item_assaultsuit");
     }
 }
 
-public Action Event_PlayerSpawn(Handle hEvent, const char[] sName, bool dontBroadcast)
+public void GunXP_OnPlayerSpawned(int client)
 {
-    int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
-
-    if(client == 0)
-        return;
-
-    else if(!IsPlayerAlive(client))
-        return;
-
     if(GunXP_UnlockShop_IsProductUnlocked(client, vestHelmIndex))
     {
         CreateTimer(0.5, Timer_GiveVestHelm, GetClientUserId(client));

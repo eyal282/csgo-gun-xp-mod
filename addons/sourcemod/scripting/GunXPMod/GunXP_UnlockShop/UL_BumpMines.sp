@@ -31,8 +31,6 @@ public void OnConfigsExecuted()
 public void OnPluginStart()
 {
     RegisterProduct();
-
-    HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Post);
 }
 
 public void RegisterProduct()
@@ -47,33 +45,12 @@ public void GunXP_UnlockShop_OnProductBuy(int client, int productIndex)
     }
 }
 
-public Action Event_PlayerSpawn(Handle hEvent, const char[] sName, bool dontBroadcast)
+public void GunXP_OnPlayerSpawned(int client)
 {
-    int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
-
-    if(client == 0)
-        return;
-
-    else if(!IsPlayerAlive(client))
-        return;
-
     if(GunXP_UnlockShop_IsProductUnlocked(client, bumpMinesIndex))
     {
-        CreateTimer(0.5, Timer_GiveBumpMines, GetClientUserId(client));
-    }
-}
-
-public Action Timer_GiveBumpMines(Handle hTimer, int UserId)
-{
-    int client = GetClientOfUserId(UserId);
-
-    if(client == 0)
-        return;
-
-    else if(!IsPlayerAlive(client))
-        return;
-
-    GivePlayerItem(client, "weapon_bumpmine");
+    	GivePlayerItem(client, "weapon_bumpmine");
+	}
 }
 
 

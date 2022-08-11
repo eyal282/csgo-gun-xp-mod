@@ -32,7 +32,6 @@ public void OnPluginStart()
 {
     RegisterProduct();
 
-    HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Post);
     HookEvent("smokegrenade_detonate", Event_SmokegrenadeDetonate, EventHookMode_Post);
 }
 
@@ -41,34 +40,15 @@ public void RegisterProduct()
     teleportGrenadeIndex = GunXP_UnlockShop_RegisterProduct("Teleport Grenade", "Spawn with a Smoke Grenade\nYou will teleport to the smoke grenade after it detonates.\nTeleportation will not occur if you would either\nget stuck or teleport to another teleport entity",200, 7, "weapon_smokegrenade", 1);
 }
 
-public Action Event_PlayerSpawn(Handle hEvent, const char[] sName, bool dontBroadcast)
+public void GunXP_OnPlayerSpawned(int client)
 {
-    int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
-
-    if(client == 0)
-        return;
-
-    else if(!IsPlayerAlive(client))
-        return;
 
     if(GunXP_UnlockShop_IsProductUnlocked(client, teleportGrenadeIndex))
     {
-        CreateTimer(0.5, Timer_GiveGrenade, GetClientUserId(client));
+          GivePlayerItem(client, "weapon_smokegrenade");
     }
 }
 
-public Action Timer_GiveGrenade(Handle hTimer, int UserId)
-{
-    int client = GetClientOfUserId(UserId);
-
-    if(client == 0)
-        return;
-
-    else if(!IsPlayerAlive(client))
-        return;
-
-    GivePlayerItem(client, "weapon_smokegrenade");
-}
 public Action Event_SmokegrenadeDetonate(Handle hEvent, const char[] sName, bool dontBroadcast)
 {
     int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));

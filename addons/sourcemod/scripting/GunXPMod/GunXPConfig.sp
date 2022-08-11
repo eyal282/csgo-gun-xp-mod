@@ -33,6 +33,7 @@ enCvarList cvarList[] = {
 	{ "sv_full_alltalk",       "1"         },
 	{ "sv_alltalk",            "1"         },
 
+	{ "mp_ignore_round_win_conditions", "0" },
 	// Gun XP deals with secondary ammo. We can't afford to allow infinite grenades...
 
 	{ "mp_respawn_immunitytime", "1000000000"},
