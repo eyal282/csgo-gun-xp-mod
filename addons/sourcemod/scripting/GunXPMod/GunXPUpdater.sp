@@ -1,5 +1,4 @@
 #include <sourcemod>
-#include <eyal-jailbreak>
 
 #undef REQUIRE_PLUGIN
 #undef REQUIRE_EXTENSIONS
