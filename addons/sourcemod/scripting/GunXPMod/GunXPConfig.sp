@@ -1,6 +1,5 @@
 #include <sourcemod>
 #include <sdktools>
-#include <eyal-jailbreak>
 #include <autoexecconfig>
 
 #define semicolon 1
