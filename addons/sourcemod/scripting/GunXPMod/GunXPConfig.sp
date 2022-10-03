@@ -92,3 +92,13 @@ public Action Timer_ExecuteConfig(Handle hTimer)
 
 	SetConVarInt(hcv_mpRoundTime, GetConVarInt(hcv_RoundTime));
 }
+
+stock ConVar UC_CreateConVar(const char[] name, const char[] defaultValue, const char[] description = "", int flags = 0, bool hasMin = false, float min = 0.0, bool hasMax = false, float max = 0.0)
+{
+	ConVar hndl = AutoExecConfig_CreateConVar(name, defaultValue, description, flags, hasMin, min, hasMax, max);
+
+	if (flags & FCVAR_PROTECTED)
+		ServerCommand("sm_cvar protect %s", name);
+
+	return hndl;
+}
